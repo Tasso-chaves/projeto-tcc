@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="pt-BR" xmlns:th="http://www.thymeleaf.org">
+<head>
+  
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE-edge">
+    <meta name="viewport" content="width-device-width, initial-scale=1">
+    <link rel="stylesheet" href="css/style.css">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-1BmE4kWBq78iYhFldvKuhfTAU6auU8tT94WrHftjDbrCEXSU1oBoqyl2QvZ6jIW3" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.1/font/bootstrap-icons.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <title>Dashboard</title>
+
+	<script type="text/javascript">
+		$(document).ready(function () {
+    
+		var tempAlerta = 32;
+    var gasDetect;
+    var tempDetect;
+				
+		// Coloque aqui o IP obtino no ESP8266
+		let con = new WebSocket('ws://192.168.15.35/', ['arduino']);
+		
+		// Evento que ocorre quando a placa envia dados
+		con.onmessage = function (evt) { 
+		  var leitura = JSON.parse(evt.data);
+      $('#gasFumaca').html(leitura.gas);
+
+		  if(leitura.temp > 0){
+				$('#temp').html(leitura.temp);	        	        
+		  }
+      if(leitura.temp > tempAlerta || leitura.gas == "Detectado"){
+        gasDetect = true;
+        tempDetect = true;                                                                                                
+      }else{
+        gasDetect = false;
+        tempDetect = false; 
+      }
+      if(gasDetect == true || tempDetect == true){
+        const data = new Date();
+        const dia = String(data.getDate()).padStart(2, '0');
+        const mes = String(data.getMonth() + 1).padStart(2, '0');
+        const ano = data.getFullYear();
+        const horas = data.getHours();
+        const minutos = data.getMinutes();
+
+        const dataAtual = `${ano}-${mes}-${dia} às ${horas}h${minutos}`;
+          //Requisição para salvar leitura
+    
+            $.ajax({
+                method: "POST",
+                url: 'salvarLeitura',                    
+                data: JSON.stringify(
+                      {tempLeitura: leitura.temp, gasLeitura: leitura.gas, dataLeitura: dataAtual}),
+                      contentType: "application/json; charset=utf-8",
+                success: function(response){                          
+                      console.log("Leitura Gravada!")
+                }
+                }).fail(function(xhr, status, errorThrown){
+                      console.log("Erro ao Salvar Leitura: "+ xhr.responseText)
+                }); 
+      }
+		};
+
+    $("#removerDiv").click(function(){
+      $('#tabelaLeituras > tbody > tr').remove();
+    });
+    
+    $("#removerDivCancel").click(function(){
+      $('#tabelaLeituras > tbody > tr').remove();
+    });
+		});//fim $(document).ready()
+
+
+
+		function buscarLeituras() {    
+			var dataBusca = $('#dataRelatorio').val();
+			if (dataBusca != null && dataBusca.trim() != '') {
+				$.ajax({
+					method: "GET",
+					url: "buscarLeituras",
+					dataType: 'json',
+					data: "data=" + dataBusca,
+					success: function (response) {
+						$('#tabelaLeituras > tbody > tr').remove();
+						for (var i = 0; i < response.length; i++) {
+							$('#tabelaLeituras > tbody').append('<tr><td>' + response[i].tempLeitura + '</td><td>' + response[i].gasLeitura + '</td><td>' + response[i].dataLeitura + '</td></tr>');
+						}
+					}
+				}).fail(function (xhr, status, errorThrown) {
+					console.log("Erro ao Listar as Leituras: " + xhr.responseText)
+				});
+			}
+		}    
+	</script>
+</head>
+
+<body>
+  
+    <!-- CABEÇALHO -->
+    <header>
+      <nav class="navbar navbarHome">
+        <div class="container-fluid">
+          <h3 class="navbar-brand dashboard" >
+            <i class="bi bi-motherboard-fill m-1"></i>Dashboard</h3>
+          <div class="d-flex ">
+            <button type="button" class="btn btn-light btCor m-1" data-bs-toggle="modal" data-bs-target="#modalRelatorio">
+              Relatório</button>          
+            <a th:href="@{/logout}" class="btn btn-light btCor m-1">Sair</a>
+          </div>
+        </div>
+      </nav>
+    </header>
+    <!-- CORPO DA PAGINA-->
+    <main>
+      <div class="container">
+        <div class="row justify-content-md-center">
+          <div class="card text-center cardUm" style="width: 45rem;">
+            <div class="card-body">
+              <h2>MONITORAMENTO RESIDENCIAL</h2>
+            </div>
+          </div>
+        </div>
+        <div class="row justify-content-md-center m-2">     
+          <!--CARD DIREITO-->
+            <div id="cardTemp" class="col-4 card text-center m-2 cardPerson" style="width: 18rem;">
+              <div class="card-body">
+                <h2 class="card-title"><span id="temp"> </span><span>ºC</span></h2>
+                <p class="card-text">Temperatura atual</p>
+              </div>
+            </div>
+
+          <!--CARD ESQUERDO-->
+            <div id="cardGas" class="col-4 card text-center m-2 cardPerson" style="width: 18rem;">
+              <div class="card-body">
+                <h2 class="card-title"><span id="gasFumaca"></span></h2>
+                <p class="card-text">Situação Gás/fumaça</p>
+              </div>  
+          </div>
+        </div>
+      </div>
+  </main>
+
+   <!-- Rodapé -->
+      <footer class="sticky-footer">
+         <div class="container my-auto">
+            <div class="copyright text-center my-auto">
+               <p>Copyright &copy; Tasso chaves 2022</p>
+             </div>
+          </div>
+       </footer>
+    <!-- Fim do Rodapé -->
+
+<!-- Modal Relatorio-->
+<div class="modal fade" id="modalRelatorio" tabindex="-1" aria-labelledby="modalRelatorioLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="modalRelatorioLabel">Relatório</h5>
+        <button id="removerDiv" type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+      	<h4>Buscar pela data:</h4>
+        <form>
+      	<input type="date" id="dataRelatorio">
+        <!--<input type="text" id="dataRelatorio">-->
+      	<table class="table" id="tabelaLeituras">
+        </form>
+		  <thead>
+		    <tr>
+          <th scope="col">Temperatura</th>
+          <th scope="col">Gas/fumaça</th>
+		      <th scope="col">Data</th>    	      
+		    </tr>
+		  </thead>
+		  <tbody>
+		  </tbody>
+	</table>
+      </div>
+      <div class="modal-footer">
+        <button id="removerDivCancel" type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-primary" onclick="buscarLeituras()">Mostrar</button>
+      </div>
+    </div>
+  </div>
+</div>
+<!-- FIM Modal Relatorio-->
+
+<!-- Option 1: Bootstrap Bundle with Popper -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-ka7Sk0Gln4gmtz2MlQnikT1wXgYsOg+OMhuP+IlRH9sENBO0LRn5q+8nbTov4+1p" crossorigin="anonymous"></script>
+</body>
+</html> 
