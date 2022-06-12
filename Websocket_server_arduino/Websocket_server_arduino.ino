@@ -24,8 +24,8 @@ WebSocketsServer webSocket = WebSocketsServer(80); // Recebe dados do cliente
 Neotimer mytimer = Neotimer(1000); // Intervalo de 5 segundos para envio dos dados do sensor
 
 // Autenticação wi-fi - Coloque aqui a sua configuração
-const char* ssid     = "tchaves";
-const char* password = "tchaves.9141";
+const char* ssid     = "rede-wifi";
+const char* password = "senha-wifi";
 
 String estadoGas;
 int temp;
